@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>TOASTER LOGO MAKER</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        @font-face {
+            font-family: "Wayward";
+            src: url("/static/fonts/Wayward.woff2") format("woff2"),
+                 url("/static/fonts/Wayward.ttf") format("truetype"),
+                 url("/static/fonts/Wayward.otf") format("opentype");
+            font-display: swap;
+        }
+
+        :root {
+            --bg-top: #1a1a1a;
+            --bg-bottom: #000000;
+            --card-bg: #1e2024;
+            --card-border: #3a3a4a;
+            --card-selected: #ff6b00;
+            --text-main: #ffffff;
+            --text-muted: #888888;
+            --icon-stroke: #555555;
+            --upload-bg: #3a3a4a;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            background: linear-gradient(180deg, var(--bg-top) 0%, var(--bg-bottom) 100%);
+            color: var(--text-main);
+            font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 28px 20px;
+        }
+
+        .wrapper {
+            width: min(980px, 100%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 24px;
+        }
+
+        h1 {
+            margin: 0;
+            font-family: "Wayward", Inter, sans-serif;
+            font-size: clamp(36px, 6vw, 48px);
+            letter-spacing: 0.02em;
+            text-align: center;
+            color: #fff;
+        }
+
+        .format-block {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .format-label {
+            width: min(632px, 100%);
+            color: var(--text-muted);
+            font-size: 14px;
+            margin: 0;
+            text-align: left;
+        }
+
+        .format-grid {
+            width: min(632px, 100%);
+            display: grid;
+            grid-template-columns: repeat(3, minmax(180px, 1fr));
+            gap: 16px;
+        }
+
+        .format-input { display: none; }
+
+        .format-card {
+            width: 100%;
+            min-height: 176px;
+            padding: 20px;
+            border-radius: 16px;
+            border: 2px solid var(--card-border);
+            background: var(--card-bg);
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: space-between;
+            text-align: center;
+            transition: border-color 0.2s ease, transform 0.2s ease;
+        }
+
+        .format-card:hover {
+            transform: translateY(-2px);
+        }
+
+        .format-input:checked + .format-card {
+            border-color: var(--card-selected);
+        }
+
+        .format-name {
+            color: #fff;
+            font-size: 18px;
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+
+        .format-size {
+            color: var(--text-muted);
+            font-size: 14px;
+        }
+
+        .icon-square,
+        .icon-vertical,
+        .icon-horizontal {
+            border: 2px solid var(--icon-stroke);
+            display: inline-block;
+        }
+
+        .icon-square {
+            width: 40px;
+            height: 40px;
+            border-radius: 8px;
+        }
+
+        .icon-vertical {
+            width: 32px;
+            height: 44px;
+            border-radius: 6px;
+        }
+
+        .icon-horizontal {
+            width: 48px;
+            height: 32px;
+            border-radius: 6px;
+        }
+
+        .upload-area {
+            width: min(500px, 100%);
+            height: 200px;
+            border-radius: 16px;
+            background: var(--upload-bg);
+            border: 2px dashed transparent;
+            color: #fff;
+            font-size: 26px;
+            font-weight: 700;
+            letter-spacing: 0.03em;
+            text-transform: uppercase;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            cursor: pointer;
+            transition: border-color 0.2s ease, background 0.2s ease;
+        }
+
+        .upload-area.dragover {
+            border-color: var(--card-selected);
+            background: #4a4a60;
+        }
+
+        .process-btn {
+            border: none;
+            border-radius: 50px;
+            padding: 16px 48px;
+            background: #ffffff;
+            color: #000000;
+            font-family: "Wayward", Inter, sans-serif;
+            font-size: clamp(22px, 3.5vw, 30px);
+            letter-spacing: 0.02em;
+            cursor: pointer;
+            transition: transform 0.2s ease, opacity 0.2s ease;
+        }
+
+        .process-btn:hover { transform: translateY(-1px); }
+        .process-btn:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
+
+        .status {
+            margin: 0;
+            min-height: 20px;
+            color: var(--text-muted);
+            font-size: 14px;
+            text-align: center;
+        }
+
+        .status.ok { color: #35d07f; }
+        .status.error { color: #ff6b6b; }
+
+        .file-list {
+            width: min(632px, 100%);
+            max-height: 120px;
+            overflow: auto;
+            color: var(--text-muted);
+            font-size: 13px;
+            text-align: center;
+            border-top: 1px solid #2a2a35;
+            padding-top: 10px;
+        }
+
+        .progress-wrap {
+            width: min(500px, 100%);
+            display: none;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            border-radius: 999px;
+            background: #2b2b36;
+            overflow: hidden;
+        }
+
+        .progress {
+            height: 100%;
+            width: 0;
+            background: linear-gradient(90deg, #ff6b00 0%, #ffa366 100%);
+            transition: width 0.15s linear;
+        }
+
+        .progress-text {
+            margin-top: 6px;
+            color: var(--text-muted);
+            font-size: 12px;
+            text-align: center;
+        }
+
+        .download {
+            display: none;
+        }
+
+        .download a {
+            display: inline-block;
+            text-decoration: none;
+            color: #fff;
+            background: #2ebd70;
+            padding: 10px 16px;
+            border-radius: 10px;
+            font-weight: 600;
+        }
+
+        .telegram-send {
+            display: none;
+        }
+
+        .telegram-send button {
+            border: none;
+            border-radius: 10px;
+            background: #2499ff;
+            color: #fff;
+            padding: 10px 16px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        input[type="file"] { display: none; }
+
+        @media (max-width: 760px) {
+            .format-grid {
+                grid-template-columns: 1fr;
+                width: min(500px, 100%);
+            }
+
+            .format-label,
+            .file-list {
+                width: min(500px, 100%);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="wrapper">
+        <h1>TOASTER LOGO MAKER</h1>
+
+        <section class="format-block">
+            <p class="format-label">Формат:</p>
+
+            <div class="format-grid">
+                <label>
+                    <input class="format-input" type="radio" name="format" value="square" checked />
+                    <span class="format-card">
+                        <span>
+                            <div class="format-name">Квадрат</div>
+                            <div class="format-size">1080x1080</div>
+                        </span>
+                        <span class="icon-square"></span>
+                    </span>
+                </label>
+
+                <label>
+                    <input class="format-input" type="radio" name="format" value="vertical" />
+                    <span class="format-card">
+                        <span>
+                            <div class="format-name">Вертикальный</div>
+                            <div class="format-size">1080x1440</div>
+                        </span>
+                        <span class="icon-vertical"></span>
+                    </span>
+                </label>
+
+                <label>
+                    <input class="format-input" type="radio" name="format" value="horizontal" />
+                    <span class="format-card">
+                        <span>
+                            <div class="format-name">Горизонтальный</div>
+                            <div class="format-size">1920x1080</div>
+                        </span>
+                        <span class="icon-horizontal"></span>
+                    </span>
+                </label>
+            </div>
+        </section>
+
+        <div id="dropzone" class="upload-area">ЗАГРУЗИТЬ ФОТО</div>
+
+        <button id="processBtn" class="process-btn" type="button" disabled>MAKE IT TOASTER</button>
+
+        <p id="processStatus" class="status">Выберите или перетащите изображения.</p>
+
+        <input id="imagesInput" type="file" accept=".jpg,.jpeg,.png,.webp" multiple />
+        <div id="fileList" class="file-list"></div>
+
+        <div id="progressWrap" class="progress-wrap">
+            <div class="progress-bar"><div id="progress" class="progress"></div></div>
+            <div id="progressText" class="progress-text">0%</div>
+        </div>
+
+        <div id="downloadWrap" class="download">
+            <a id="downloadBtn" href="#">Скачать ZIP-архив</a>
+        </div>
+
+        <div id="telegramSendWrap" class="telegram-send">
+            <button id="telegramSendBtn" type="button">📤 Отправить в Telegram</button>
+        </div>
+    </div>
+
+    <script>
+        const dropzone = document.getElementById("dropzone");
+        const imagesInput = document.getElementById("imagesInput");
+        const processBtn = document.getElementById("processBtn");
+        const processStatus = document.getElementById("processStatus");
+        const fileList = document.getElementById("fileList");
+
+        const progressWrap = document.getElementById("progressWrap");
+        const progress = document.getElementById("progress");
+        const progressText = document.getElementById("progressText");
+
+        const downloadWrap = document.getElementById("downloadWrap");
+        const downloadBtn = document.getElementById("downloadBtn");
+        const telegramSendWrap = document.getElementById("telegramSendWrap");
+        const telegramSendBtn = document.getElementById("telegramSendBtn");
+
+        const MAX_COUNT = 50;
+        let selectedImages = [];
+        let processedPhotosBase64 = [];
+
+        function getSelectedFormat() {
+            const selected = document.querySelector('input[name="format"]:checked');
+            return selected ? selected.value : "";
+        }
+
+        function setStatus(element, text, type = "") {
+            element.textContent = text;
+            element.classList.remove("ok", "error");
+            if (type) element.classList.add(type);
+        }
+
+        function updateFileList() {
+            if (!selectedImages.length) {
+                fileList.textContent = "Файлы не выбраны.";
+                processBtn.disabled = true;
+                return;
+            }
+
+            const names = selectedImages.map((file) => `${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)`);
+            fileList.innerHTML = names.join("<br>");
+            processBtn.disabled = false;
+        }
+
+        function validateSelection(files) {
+            if (files.length > MAX_COUNT) {
+                setStatus(processStatus, `Можно выбрать максимум ${MAX_COUNT} файлов.`, "error");
+                return false;
+            }
+
+            for (const f of files) {
+                const name = f.name.toLowerCase();
+                const allowed = [".jpg", ".jpeg", ".png", ".webp"];
+                if (!allowed.some((ext) => name.endsWith(ext))) {
+                    setStatus(processStatus, `Неподдерживаемый формат: ${f.name}`, "error");
+                    return false;
+                }
+
+                if (f.size > 20 * 1024 * 1024) {
+                    setStatus(processStatus, `Файл ${f.name} больше 20MB.`, "error");
+                    return false;
+                }
+            }
+
+            setStatus(processStatus, "Файлы готовы к обработке.", "ok");
+            return true;
+        }
+
+        dropzone.addEventListener("click", () => imagesInput.click());
+
+        imagesInput.addEventListener("change", () => {
+            const files = Array.from(imagesInput.files || []);
+            selectedImages = validateSelection(files) ? files : [];
+            updateFileList();
+        });
+
+        ["dragenter", "dragover"].forEach((eventName) => {
+            dropzone.addEventListener(eventName, (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                dropzone.classList.add("dragover");
+            });
+        });
+
+        ["dragleave", "drop"].forEach((eventName) => {
+            dropzone.addEventListener(eventName, (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                dropzone.classList.remove("dragover");
+            });
+        });
+
+        dropzone.addEventListener("drop", (e) => {
+            const files = Array.from(e.dataTransfer.files || []);
+            selectedImages = validateSelection(files) ? files : [];
+            updateFileList();
+        });
+
+        processBtn.addEventListener("click", () => {
+            if (!selectedImages.length) {
+                setStatus(processStatus, "Сначала выберите изображения.", "error");
+                return;
+            }
+
+            const selectedFormat = getSelectedFormat();
+            if (!selectedFormat) {
+                setStatus(processStatus, "Выберите формат обработки.", "error");
+                return;
+            }
+
+            progressWrap.style.display = "block";
+            downloadWrap.style.display = "none";
+            telegramSendWrap.style.display = "none";
+            processedPhotosBase64 = [];
+            progress.style.width = "0%";
+            progressText.textContent = "0%";
+            setStatus(processStatus, "Отправка и обработка...", "");
+
+            const formData = new FormData();
+            formData.append("format", selectedFormat);
+            selectedImages.forEach((file) => formData.append("images", file));
+
+            processBtn.disabled = true;
+
+            const xhr = new XMLHttpRequest();
+            xhr.open("POST", "/api/process", true);
+
+            xhr.upload.onprogress = (event) => {
+                if (!event.lengthComputable) return;
+                const percent = Math.min(Math.round((event.loaded / event.total) * 100), 100);
+                progress.style.width = `${percent}%`;
+                progressText.textContent = `${percent}%`;
+            };
+
+            xhr.onload = () => {
+                processBtn.disabled = false;
+                progress.style.width = "100%";
+                progressText.textContent = "100%";
+
+                let data = null;
+                try {
+                    data = JSON.parse(xhr.responseText || "{}");
+                } catch {
+                    setStatus(processStatus, "Ошибка ответа сервера.", "error");
+                    return;
+                }
+
+                if (xhr.status >= 200 && xhr.status < 300 && data.ok) {
+                    setStatus(processStatus, "Готово! Архив сформирован.", "ok");
+                    downloadBtn.href = data.download_url;
+                    downloadWrap.style.display = "block";
+                    processedPhotosBase64 = Array.isArray(data.photos) ? data.photos : [];
+                    if (processedPhotosBase64.length) {
+                        telegramSendWrap.style.display = "block";
+                    }
+                } else {
+                    setStatus(processStatus, data.message || "Ошибка обработки.", "error");
+                }
+            };
+
+            xhr.onerror = () => {
+                processBtn.disabled = false;
+                setStatus(processStatus, "Сетевая ошибка при обработке.", "error");
+            };
+
+            xhr.send(formData);
+        });
+
+        telegramSendBtn.addEventListener("click", () => {
+            if (!processedPhotosBase64.length) {
+                setStatus(processStatus, "Нет обработанных фото для отправки.", "error");
+                return;
+            }
+
+            if (!(window.Telegram && window.Telegram.WebApp)) {
+                setStatus(processStatus, "Telegram WebApp недоступен.", "error");
+                return;
+            }
+
+            try {
+                window.Telegram.WebApp.sendData(
+                    JSON.stringify({ photos: processedPhotosBase64 })
+                );
+                setStatus(processStatus, "Фото отправлены в чат!", "ok");
+            } catch (_err) {
+                setStatus(processStatus, "Не удалось отправить фото в Telegram.", "error");
+            }
+        });
+
+        document.addEventListener("DOMContentLoaded", function() {
+            if (window.Telegram && window.Telegram.WebApp) {
+                const tg = window.Telegram.WebApp;
+                tg.ready();
+                tg.expand();
+            }
+        });
+
+        fileList.textContent = "Файлы не выбраны.";
+    </script>
+</body>
+</html>
