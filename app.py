@@ -3,10 +3,9 @@ from __future__ import annotations
 import base64
 import shutil
 import uuid
-import zipfile
 from pathlib import Path
 
-from flask import Flask, jsonify, render_template, request, send_file
+from flask import Flask, jsonify, render_template, request
 from flask_cors import CORS
 from werkzeug.utils import secure_filename
 
@@ -69,9 +68,7 @@ def process_images():
 
     job_id = str(uuid.uuid4())
     upload_job_dir = UPLOADS_DIR / job_id
-    output_job_dir = OUTPUTS_DIR / job_id
     upload_job_dir.mkdir(parents=True, exist_ok=True)
-    output_job_dir.mkdir(parents=True, exist_ok=True)
 
     try:
         photos_base64: list[str] = []
@@ -97,44 +94,15 @@ def process_images():
 
             processed_bytes = processor.apply_to_file(input_path)
             photos_base64.append(base64.b64encode(processed_bytes).decode("utf-8"))
-            output_path = output_job_dir / f"wm_{original_name}"
-            output_path.write_bytes(processed_bytes)
 
-        zip_path = output_job_dir / "watermarked.zip"
-        with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zipf:
-            for file in output_job_dir.iterdir():
-                if file.is_file() and file.name != zip_path.name:
-                    zipf.write(file, arcname=file.name)
-
-        return jsonify(
-            {
-                "ok": True,
-                "job_id": job_id,
-                "download_url": f"/download/{job_id}",
-                "photos": photos_base64,
-            }
-        )
+        _cleanup_job(job_id)
+        return jsonify({"ok": True, "photos": photos_base64})
     except WatermarkError as exc:
         _cleanup_job(job_id)
         return jsonify({"ok": False, "message": str(exc)}), 400
     except OSError:
         _cleanup_job(job_id)
         return jsonify({"ok": False, "message": "Ошибка обработки файлов на сервере."}), 500
-
-
-@app.route("/download/<job_id>", methods=["GET"])
-def download_result(job_id: str):
-    zip_path = OUTPUTS_DIR / job_id / "watermarked.zip"
-    if not zip_path.exists():
-        return "Архив не найден или уже удален.", 404
-
-    response = send_file(zip_path, as_attachment=True, download_name="watermarked.zip")
-
-    @response.call_on_close
-    def _remove_temp_files() -> None:
-        _cleanup_job(job_id)
-
-    return response
 
 
 if __name__ == "__main__":

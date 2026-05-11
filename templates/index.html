@@ -151,32 +151,41 @@
             text-align: center;
         }
 
-        .download {
-            display: none;
-        }
-
-        .download a {
-            display: inline-block;
-            text-decoration: none;
-            color: #fff;
-            background: #2ebd70;
-            padding: 10px 16px;
-            border-radius: 10px;
-            font-weight: 600;
-        }
-
         .telegram-send {
             display: none;
+            width: min(500px, 100%);
+            justify-content: center;
         }
 
-        .telegram-send button {
+        .telegram-send.visible {
+            display: flex;
+        }
+
+        .telegram-send-btn {
+            width: 100%;
+            max-width: 420px;
             border: none;
-            border-radius: 10px;
-            background: #2499ff;
+            border-radius: 16px;
+            background: linear-gradient(180deg, #2aabee 0%, #229ed9 55%, #1b8bcc 100%);
             color: #fff;
-            padding: 10px 16px;
-            font-weight: 600;
+            padding: 22px 28px;
+            min-height: 64px;
+            font-size: 18px;
+            font-weight: 700;
+            letter-spacing: 0.02em;
             cursor: pointer;
+            box-shadow: 0 8px 24px rgba(34, 158, 217, 0.45);
+            transition: transform 0.15s ease, box-shadow 0.15s ease, filter 0.15s ease;
+        }
+
+        .telegram-send-btn:hover {
+            filter: brightness(1.08);
+            transform: translateY(-2px);
+            box-shadow: 0 12px 28px rgba(34, 158, 217, 0.55);
+        }
+
+        .telegram-send-btn:active {
+            transform: translateY(0);
         }
 
         input[type="file"] { display: none; }
@@ -201,12 +210,8 @@
             <div id="progressText" class="progress-text">0%</div>
         </div>
 
-        <div id="downloadWrap" class="download">
-            <a id="downloadBtn" href="#">Скачать ZIP-архив</a>
-        </div>
-
         <div id="telegramSendWrap" class="telegram-send">
-            <button id="telegramSendBtn" type="button">📤 Отправить в Telegram</button>
+            <button id="telegramSendBtn" class="telegram-send-btn" type="button">📤 Отправить в Telegram</button>
         </div>
     </div>
 
@@ -221,8 +226,6 @@
         const progress = document.getElementById("progress");
         const progressText = document.getElementById("progressText");
 
-        const downloadWrap = document.getElementById("downloadWrap");
-        const downloadBtn = document.getElementById("downloadBtn");
         const telegramSendWrap = document.getElementById("telegramSendWrap");
         const telegramSendBtn = document.getElementById("telegramSendBtn");
 
@@ -309,8 +312,7 @@
             }
 
             progressWrap.style.display = "block";
-            downloadWrap.style.display = "none";
-            telegramSendWrap.style.display = "none";
+            telegramSendWrap.classList.remove("visible");
             processedPhotosBase64 = [];
             progress.style.width = "0%";
             progressText.textContent = "0%";
@@ -345,12 +347,12 @@
                 }
 
                 if (xhr.status >= 200 && xhr.status < 300 && data.ok) {
-                    setStatus(processStatus, "Готово! Архив сформирован.", "ok");
-                    downloadBtn.href = data.download_url;
-                    downloadWrap.style.display = "block";
                     processedPhotosBase64 = Array.isArray(data.photos) ? data.photos : [];
                     if (processedPhotosBase64.length) {
-                        telegramSendWrap.style.display = "block";
+                        setStatus(processStatus, "Готово! Можно отправить фото в Telegram.", "ok");
+                        telegramSendWrap.classList.add("visible");
+                    } else {
+                        setStatus(processStatus, "Обработка завершена, но фото не получены.", "error");
                     }
                 } else {
                     setStatus(processStatus, data.message || "Ошибка обработки.", "error");
