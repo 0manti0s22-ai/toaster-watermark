@@ -23,6 +23,7 @@ class WatermarkProcessor:
 
     LOGO_PATH = Path("static/logo.png")
     LOGO_MARGIN = 64
+    MAX_PREPROCESS_EDGE = 2000
 
     def __init__(self) -> None:
         self.logo_path = self.LOGO_PATH
@@ -68,40 +69,77 @@ class WatermarkProcessor:
 
         return image.crop((left, top, right, bottom))
 
+    @staticmethod
+    def _fit_to_target(cropped: Image.Image, tw: int, th: int) -> Image.Image:
+        """Scale to exact (tw, th); prefer thumbnail (in-place) when downsizing."""
+        cw, ch = cropped.size
+        target_max = max(tw, th)
+        if max(cw, ch) > target_max:
+            cropped.thumbnail((tw, th), Image.Resampling.LANCZOS)
+        if cropped.size != (tw, th):
+            return cropped.resize((tw, th), Image.Resampling.LANCZOS)
+        return cropped
+
     def apply_to_file(self, image_path: str | Path, format_name: str) -> bytes:
         if not self.is_logo_available():
             raise WatermarkError("Файл логотипа static/logo.png не найден на сервере.")
 
         target_size = self.validate_format(format_name)
+        tw, th = target_size
 
         image_path = Path(image_path)
         suffix = image_path.suffix.lower()
         if suffix not in self.SUPPORTED_EXTENSIONS:
             raise WatermarkError(f"Формат {suffix or 'unknown'} не поддерживается.")
 
+        prepared: Image.Image | None = None
+        layer: Image.Image | None = None
+        result: Image.Image | None = None
+
         try:
-            with Image.open(image_path) as base_img, Image.open(self.logo_path) as logo_img:
-                base = base_img.convert("RGBA")
-                cropped = self._crop_to_aspect(base, target_size[0], target_size[1])
-                prepared = cropped.resize(target_size, Image.Resampling.LANCZOS)
+            with Image.open(image_path) as src:
+                work = src.convert("RGBA")
+                work.thumbnail(
+                    (self.MAX_PREPROCESS_EDGE, self.MAX_PREPROCESS_EDGE),
+                    Image.Resampling.LANCZOS,
+                )
+                cropped = self._crop_to_aspect(work, tw, th)
 
-                logo = logo_img.convert("RGBA")
+            prepared = self._fit_to_target(cropped, tw, th)
+            if prepared is not cropped:
+                cropped.close()
 
+            with Image.open(self.logo_path) as logo_src:
+                logo_rgba = logo_src.convert("RGBA")
                 layer = Image.new("RGBA", prepared.size, (0, 0, 0, 0))
-                layer.paste(logo, (self.LOGO_MARGIN, self.LOGO_MARGIN), logo)
+                layer.paste(logo_rgba, (self.LOGO_MARGIN, self.LOGO_MARGIN), logo_rgba)
 
-                result = Image.alpha_composite(prepared, layer)
+            result = Image.alpha_composite(prepared, layer)
 
-                output = BytesIO()
-                if suffix in {".jpg", ".jpeg"}:
-                    result.convert("RGB").save(output, format="JPEG", quality=95)
-                elif suffix == ".png":
-                    result.save(output, format="PNG")
-                elif suffix == ".webp":
-                    result.save(output, format="WEBP", quality=95)
+            output = BytesIO()
+            if suffix in {".jpg", ".jpeg"}:
+                if result.mode in ("RGBA", "LA", "P"):
+                    rgb = result.convert("RGB")
+                    try:
+                        rgb.save(output, format="JPEG", quality=95)
+                    finally:
+                        rgb.close()
+                else:
+                    result.save(output, format="JPEG", quality=95)
+            elif suffix == ".png":
+                result.save(output, format="PNG")
+            elif suffix == ".webp":
+                result.save(output, format="WEBP", quality=95)
 
-                return output.getvalue()
+            return output.getvalue()
         except OSError as exc:
             raise WatermarkError(
                 f"Не удалось обработать файл {image_path.name}. Возможно, файл поврежден."
             ) from exc
+        finally:
+            for im in (result, layer, prepared):
+                if im is not None:
+                    try:
+                        im.close()
+                    except Exception:
+                        pass
