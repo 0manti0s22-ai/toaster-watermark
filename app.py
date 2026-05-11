@@ -82,13 +82,15 @@ def process_images():
     try:
         photos_base64: list[str] = []
         for file_storage in files:
-            original_name = secure_filename(file_storage.filename or "")
-            if not original_name:
-                raise WatermarkError("Один из файлов имеет некорректное имя.")
-
-            ext = Path(original_name).suffix.lower()
+            raw_name = file_storage.filename or ""
+            ext = Path(raw_name).suffix.lower()
+            if not ext:
+                raise WatermarkError(f"Не удалось определить формат файла: {raw_name}")
             if ext not in ALLOWED_EXTENSIONS:
-                raise WatermarkError(f"Формат файла {original_name} не поддерживается.")
+                raise WatermarkError(f"Формат файла {raw_name} не поддерживается.")
+
+            safe_stem = secure_filename(Path(raw_name).stem) or "image"
+            original_name = f"{safe_stem}{ext}"
 
             data = file_storage.read()
             if not data:
