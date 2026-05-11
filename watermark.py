@@ -43,11 +43,18 @@ class WatermarkProcessor:
         if invalid:
             raise WatermarkError("Неподдерживаемый формат файла: " + ", ".join(invalid))
 
-    def validate_format(self, format_name: str) -> tuple[int, int]:
-        size = self.FORMATS.get(format_name)
-        if size is None:
-            raise WatermarkError("Выберите корректный формат: Квадрат, Вертикальный или Горизонтальный.")
-        return size
+    def detect_format(self, image: Image.Image) -> tuple[int, int]:
+        """Определяет выходной размер по соотношению сторон исходного изображения."""
+        w, h = image.size
+        if h == 0:
+            raise WatermarkError("Некорректный размер изображения.")
+        ratio = w / h
+
+        if 0.9 <= ratio <= 1.1:
+            return self.FORMATS["square"]
+        if ratio < 0.9:
+            return self.FORMATS["vertical"]
+        return self.FORMATS["horizontal"]
 
     @staticmethod
     def _crop_to_aspect(image: Image.Image, target_width: int, target_height: int) -> Image.Image:
@@ -80,12 +87,9 @@ class WatermarkProcessor:
             return cropped.resize((tw, th), Image.Resampling.LANCZOS)
         return cropped
 
-    def apply_to_file(self, image_path: str | Path, format_name: str) -> bytes:
+    def apply_to_file(self, image_path: str | Path) -> bytes:
         if not self.is_logo_available():
             raise WatermarkError("Файл логотипа static/logo.png не найден на сервере.")
-
-        target_size = self.validate_format(format_name)
-        tw, th = target_size
 
         image_path = Path(image_path)
         suffix = image_path.suffix.lower()
@@ -103,6 +107,7 @@ class WatermarkProcessor:
                     (self.MAX_PREPROCESS_EDGE, self.MAX_PREPROCESS_EDGE),
                     Image.Resampling.LANCZOS,
                 )
+                tw, th = self.detect_format(work)
                 cropped = self._crop_to_aspect(work, tw, th)
 
             prepared = self._fit_to_target(cropped, tw, th)

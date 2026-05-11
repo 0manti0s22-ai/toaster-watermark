@@ -58,12 +58,6 @@ def process_images():
     if not processor.is_logo_available():
         return jsonify({"ok": False, "message": "Логотип static/logo.png не найден на сервере."}), 400
 
-    selected_format = request.form.get("format", "")
-    try:
-        processor.validate_format(selected_format)
-    except WatermarkError as exc:
-        return jsonify({"ok": False, "message": str(exc)}), 400
-
     files = request.files.getlist("images")
     if not files:
         return jsonify({"ok": False, "message": "Выберите изображения для обработки."}), 400
@@ -101,7 +95,7 @@ def process_images():
             input_path = upload_job_dir / original_name
             input_path.write_bytes(data)
 
-            processed_bytes = processor.apply_to_file(input_path, selected_format)
+            processed_bytes = processor.apply_to_file(input_path)
             photos_base64.append(base64.b64encode(processed_bytes).decode("utf-8"))
             output_path = output_job_dir / f"wm_{original_name}"
             output_path.write_bytes(processed_bytes)

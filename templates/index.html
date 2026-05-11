@@ -17,12 +17,9 @@
         :root {
             --bg-top: #1a1a1a;
             --bg-bottom: #000000;
-            --card-bg: #1e2024;
-            --card-border: #3a3a4a;
             --card-selected: #ff6b00;
             --text-main: #ffffff;
             --text-muted: #888888;
-            --icon-stroke: #555555;
             --upload-bg: #3a3a4a;
         }
 
@@ -48,6 +45,14 @@
             gap: 24px;
         }
 
+        .auto-format-hint {
+            margin: -8px 0 0;
+            color: var(--text-muted);
+            font-size: 13px;
+            text-align: center;
+            max-width: min(500px, 100%);
+        }
+
         h1 {
             margin: 0;
             font-family: "Wayward", Inter, sans-serif;
@@ -55,92 +60,6 @@
             letter-spacing: 0.02em;
             text-align: center;
             color: #fff;
-        }
-
-        .format-block {
-            width: 100%;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 12px;
-        }
-
-        .format-label {
-            width: min(632px, 100%);
-            color: var(--text-muted);
-            font-size: 14px;
-            margin: 0;
-            text-align: left;
-        }
-
-        .format-grid {
-            width: min(632px, 100%);
-            display: grid;
-            grid-template-columns: repeat(3, minmax(180px, 1fr));
-            gap: 16px;
-        }
-
-        .format-input { display: none; }
-
-        .format-card {
-            width: 100%;
-            min-height: 176px;
-            padding: 20px;
-            border-radius: 16px;
-            border: 2px solid var(--card-border);
-            background: var(--card-bg);
-            cursor: pointer;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: space-between;
-            text-align: center;
-            transition: border-color 0.2s ease, transform 0.2s ease;
-        }
-
-        .format-card:hover {
-            transform: translateY(-2px);
-        }
-
-        .format-input:checked + .format-card {
-            border-color: var(--card-selected);
-        }
-
-        .format-name {
-            color: #fff;
-            font-size: 18px;
-            font-weight: 700;
-            margin-bottom: 4px;
-        }
-
-        .format-size {
-            color: var(--text-muted);
-            font-size: 14px;
-        }
-
-        .icon-square,
-        .icon-vertical,
-        .icon-horizontal {
-            border: 2px solid var(--icon-stroke);
-            display: inline-block;
-        }
-
-        .icon-square {
-            width: 40px;
-            height: 40px;
-            border-radius: 8px;
-        }
-
-        .icon-vertical {
-            width: 32px;
-            height: 44px;
-            border-radius: 6px;
-        }
-
-        .icon-horizontal {
-            width: 48px;
-            height: 32px;
-            border-radius: 6px;
         }
 
         .upload-area {
@@ -195,7 +114,7 @@
         .status.error { color: #ff6b6b; }
 
         .file-list {
-            width: min(632px, 100%);
+            width: min(500px, 100%);
             max-height: 120px;
             overflow: auto;
             color: var(--text-muted);
@@ -261,62 +180,12 @@
         }
 
         input[type="file"] { display: none; }
-
-        @media (max-width: 760px) {
-            .format-grid {
-                grid-template-columns: 1fr;
-                width: min(500px, 100%);
-            }
-
-            .format-label,
-            .file-list {
-                width: min(500px, 100%);
-            }
-        }
     </style>
 </head>
 <body>
     <div class="wrapper">
         <h1>TOASTER LOGO MAKER</h1>
-
-        <section class="format-block">
-            <p class="format-label">Формат:</p>
-
-            <div class="format-grid">
-                <label>
-                    <input class="format-input" type="radio" name="format" value="square" checked />
-                    <span class="format-card">
-                        <span>
-                            <div class="format-name">Квадрат</div>
-                            <div class="format-size">1080x1080</div>
-                        </span>
-                        <span class="icon-square"></span>
-                    </span>
-                </label>
-
-                <label>
-                    <input class="format-input" type="radio" name="format" value="vertical" />
-                    <span class="format-card">
-                        <span>
-                            <div class="format-name">Вертикальный</div>
-                            <div class="format-size">1080x1440</div>
-                        </span>
-                        <span class="icon-vertical"></span>
-                    </span>
-                </label>
-
-                <label>
-                    <input class="format-input" type="radio" name="format" value="horizontal" />
-                    <span class="format-card">
-                        <span>
-                            <div class="format-name">Горизонтальный</div>
-                            <div class="format-size">1920x1080</div>
-                        </span>
-                        <span class="icon-horizontal"></span>
-                    </span>
-                </label>
-            </div>
-        </section>
+        <p class="auto-format-hint">Формат выхода подбирается автоматически по фото.</p>
 
         <div id="dropzone" class="upload-area">ЗАГРУЗИТЬ ФОТО</div>
 
@@ -360,11 +229,6 @@
         const MAX_COUNT = 50;
         let selectedImages = [];
         let processedPhotosBase64 = [];
-
-        function getSelectedFormat() {
-            const selected = document.querySelector('input[name="format"]:checked');
-            return selected ? selected.value : "";
-        }
 
         function setStatus(element, text, type = "") {
             element.textContent = text;
@@ -444,12 +308,6 @@
                 return;
             }
 
-            const selectedFormat = getSelectedFormat();
-            if (!selectedFormat) {
-                setStatus(processStatus, "Выберите формат обработки.", "error");
-                return;
-            }
-
             progressWrap.style.display = "block";
             downloadWrap.style.display = "none";
             telegramSendWrap.style.display = "none";
@@ -459,7 +317,6 @@
             setStatus(processStatus, "Отправка и обработка...", "");
 
             const formData = new FormData();
-            formData.append("format", selectedFormat);
             selectedImages.forEach((file) => formData.append("images", file));
 
             processBtn.disabled = true;
